@@ -1,0 +1,35 @@
+version: 2.1
+orbs:
+  aws-ecr: circleci/aws-ecr@7.0.0
+  aws-ecs: circleci/aws-ecs@3.2
+workflows:
+  deploy-to-ecs:
+    jobs:
+      - aws-ecr/build-and-push-image:
+          name: "build-and-push-image"
+          account-url: AWS_ECR_URL
+          create-repo: false
+          dockerfile: Dockerfile
+          no-output-timeout: 20m
+          path: ./
+          region: AWS_DEFAULT_REGION
+          repo: medcheck-b7-repo
+          skip-when-tags-exist: false
+          tag: $CIRCLE_SHA1
+          filters:
+            branches:
+              only:
+                - main
+      - aws-ecs/deploy-service-update:
+          name: "deploy-service-update"
+          cluster: madcheck-servers-cluster
+          container-image-name-updates: 'container=medcheck-servers-container,tag=${CIRCLE_SHA1}'
+          family: madcheck-servers-task
+          service-name: medcheck-service
+          force-new-deployment: true
+          requires:
+            - build-and-push-image
+          filters:
+            branches:
+              only:
+                - main
